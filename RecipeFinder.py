@@ -29,9 +29,6 @@ def check_exists_by_id(id):
 # this link is the original scroll page
 # scrolls through all the pages
 def scrollThroughPages(driver, link, searchWord):
-    driver.get("https://www.google.com")
-    time.sleep(10)
-    body = driver.find_element(By.TAG_NAME, "body").send_keys(Keys.LEFT_CONTROL + 't')
     onePageRecipieGatherer(driver, link, searchWord)
     driver.get(link)
     while check_exists_by_xpath("//*[@id=\"pagination_1-0\"]/li[6]/a"):
@@ -119,7 +116,6 @@ def onePageRecipieGatherer(driver, link, searchWord):
 options = Options()
 options.add_argument('--headless=new')
 driver = webdriver.Chrome(options=options)
-
 
 wordList = []
 wordFile = open("C:\\Users\\monke\\Downloads\\School\\ISM\\List of Food.txt", "r")
