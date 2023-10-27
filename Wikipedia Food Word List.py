@@ -15,7 +15,8 @@ driver = webdriver.Chrome(options=options)
 # Gets all the cuisine links from this page
 driver.get("https://en.wikipedia.org/wiki/List_of_cuisines#Regional_and_ethnic_cuisines")
 elem = driver.find_elements(By.XPATH, "//*[@title]")
-titles = []
+cuisineLinks = []
+foodWords = []
 for title in elem:
     newTitle = title.get_attribute("title")
     if newTitle.find(" cuisine") != -1 or newTitle.find("cuisine ") != -1:
@@ -27,8 +28,19 @@ for title in elem:
             test = -1
         elif link.find("%") != -1 or link.find("des") != -1:
             test = -1
+        elif link.find(":") != -1:
+            test = -1
         elif link.find("(") != -1:
             link = link[0:link.find("(")-1]
-        if test != -1:
-            titles.append(link)
+        if test != -1 and cuisineLinks.count(link) == 0:
+            cuisineLinks.append(link)
+
+for link in cuisineLinks:
+    driver.get(link)
+    elem = driver.find_elements(By.XPATH, "//*[@title]")
+    for title in elem:
+        newTitle = title.get_attribute("title")
+        # plug in method here to decide if the word can be used
+
+
 
