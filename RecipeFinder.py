@@ -4,10 +4,10 @@ from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
-import os
+import re
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
-
+import csv
 
 # https://stackoverflow.com/questions/9567069/checking-if-an-element-exists-with-python-selenium
 def check_exists_by_xpath(xpath):
@@ -54,61 +54,54 @@ def onePageRecipieGatherer(driver, link, searchWord):
             soup = BeautifulSoup(secondTab.content, "html.parser")
             titleResults = soup.find(id="article-heading_1-0").text.replace("\n", "")
 
-            # Creates new file for the recipe
-            # Checks if file already exists and if so then add the parameter as a search word
-            filepath = os.path.join("D:\\Recipes", titleResults)
-            if not os.path.exists(filepath + ".txt"):
-                file = open(filepath + ".txt", "w")
-            else:
-                file = open(filepath + ".txt", "a")
-                file.write("\"" + searchWord + "\", ")
-            file.close()
-
             # Grabbing Information WebScraper
             infoResults = soup.find(id="recipe-details_1-0")
 
             # Formatting
             if infoResults.text is not None:
-                infoResults = infoResults.text
-                infoResults = infoResults.replace("\n", "").replace("Jump to Nutrition Facts", "")
-                infoResults = infoResults.replace(":", ": ").replace("mins", "mins\n").replace("hrsS",
-                                                                                               "hrs\nS").replace("hrsT",
-                                                                                                                 "hrs\nT")
-                infoResults = infoResults.replace("Yield: ", "\nYield: ")
-
-            # Putting Info Into File
-            file = open(filepath + ".txt", "a")
-            file.write(titleResults + "\n\nHelpful Information:\n" + infoResults)
-            file.close()
-
+                word = re.sub(r'someword=|\,.*|\#.*', '', infoResults.text.replace("Jump to Nutrition Facts", ""))
+                infoResults = re.sub(r'\n+', '>', word).strip()
+                splitInfoResults = re.split("[:>]", infoResults)
+                splitInfoResults = [e.strip() for e in splitInfoResults]
+                for index in splitInfoResults[:]:
+                    if index == '':
+                        splitInfoResults.remove(index)
+                        continue
+                    if not index[0:1].isdigit():
+                        splitInfoResults.remove(index)
+            print(splitInfoResults)
             # Getting ingredients
-            ingredients = soup.findAll(class_="mntl-structured-ingredients__list-item")
-            file = open(filepath + ".txt", "a")
-            file.write("\n\nIngredients: ")
-
-            # Putting Ingredients Into A File
-            for x in ingredients:
-                file.write(
-                    "\n" + x.text.replace("\n", "").replace('\u2153', "1/3").replace('\u215b', "1/8").replace('\u2154',
-                                                                                                              "2/3"))
-            file.close()
+            scrapedIngredients = soup.findAll(class_="mntl-structured-ingredients__list-item")
+            ingredients = ""
+            for x in scrapedIngredients:
+                ingredients = ingredients + x.text
+            word = re.sub(r'someword=|\,.*|\#.*', '', ingredients)
+            ingredients = re.sub(r'\n+', '>', word).strip()
+            ingredients = re.sub(r'\s+', "_", ingredients)
 
             # Instructions
             # https://stackoverflow.com/questions/32063985/deleting-a-div-with-a-particular-class-using-beautifulsoup
             delete = soup.findAll(class_="figure-article-caption-owner")
             for x in delete:
                 x.decompose()
-            steps = soup.findAll(class_="comp mntl-sc-block-group--LI mntl-sc-block mntl-sc-block-startgroup")
-            file = open(filepath + ".txt", "a")
-            stepCounter = 1
-            file.write("\n\nSteps:\n")
-            for x in steps:
-                file.write(str(stepCounter) + ". " + x.text.replace("\n", "") + '\n')
+            wrongSteps = soup.findAll(class_="comp mntl-sc-block-group--LI mntl-sc-block mntl-sc-block-startgroup")
+            steps = ""
+            stepCounter = 0
+            for x in wrongSteps:
                 stepCounter = stepCounter + 1
-                file.write("\nKeywords: \"" + searchWord + "\",")
-            file.close()
+                steps = steps + "]" + str(stepCounter) + "." + x.text.strip()
+            steps = re.sub(r'\s+', "_", steps)
             counter = counter + 1
+            print(searchWord)
+            keywords = searchWord.replace(" ", "_")
             id = "mntl-card-list-items_1-0-" + str(counter)
+            with open('recipes.csv', 'a', newline='') as file:
+                writer = csv.writer(file)
+                print(len(splitInfoResults))
+                if len(splitInfoResults) >= 4:
+                    writer.writerow([splitInfoResults[0], splitInfoResults[1], splitInfoResults[2], splitInfoResults[3], ingredients, steps, keywords])
+        break
+        
     # driver.close()
 
 
@@ -122,6 +115,10 @@ wordFile = open("C:\\Users\\monke\\Downloads\\School\\ISM\\List of Food.txt", "r
 for x in wordFile:
     wordList.append(x)
 wordFile.close()
+with open('recipes.csv', 'w', newline='') as file:
+    writer = csv.writer(file)
+    field = ["prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
+file.close()
 for x in wordList:
     search = x
     # need to find a huge list of common recipe search words
