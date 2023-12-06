@@ -25,7 +25,7 @@ def check_exists_by_id(id):
         return False
     return True
 
-
+# checks if the title of a recipe already exists, if it does return the row where it exists
 def check_title(title):
     with open('recipes.csv', newline='') as f:
         rowCounter = 0
@@ -36,7 +36,7 @@ def check_title(title):
         rowCounter = rowCounter + 1
     return -1
 
-
+# adds a key word to an already existing recipe instead of adding the saem recipe
 def addKeyWord(title, searchWord):
     row = check_title(title)
     if row > 0:
@@ -60,6 +60,7 @@ def scrollThroughPages(driver, link, searchWord):
         # driver.close()
         onePageRecipieGatherer(driver, newLink, searchWord)
         link = newLink
+    driver.close()
 
 
 # saves all recipes on a page
@@ -118,15 +119,12 @@ def onePageRecipieGatherer(driver, link, searchWord):
             id = "mntl-card-list-items_1-0-" + str(counter)
             with open('recipes.csv', 'a', newline='') as file:
                 writer = csv.writer(file)
-                print(len(splitInfoResults))
                 if addKeyWord(titleResults, searchWord):
                     if len(splitInfoResults) >= 4:
                         writer.writerow([titleResults, splitInfoResults[0], splitInfoResults[1], splitInfoResults[2],
                                          splitInfoResults[3], ingredients, steps, keywords])
-
+            file.close()
         break
-
-    # driver.close()
 
 
 # main
@@ -134,19 +132,22 @@ options = Options()
 options.add_argument('--headless=new')
 driver = webdriver.Chrome(options=options)
 
+# opens wordList and makes csv file
 wordList = []
 wordFile = open("C:\\Users\\monke\\Downloads\\School\\ISM\\List of Food.txt", "r")
 for searchWord in wordFile:
     wordList.append(searchWord)
 wordFile.close()
-with open('re'
-          'cipes.csv', 'w', newline='') as file:
+with open('recipes.csv', 'w', newline='') as file:
     writer = csv.writer(file)
     field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
 file.close()
+
+#insert threads here I think
+
+
 for word in wordList:
     search = word
-    # need to find a huge list of common recipe search words
     link = "https://www.allrecipes.com/search?q=" + search.replace(" ", "%20")
     scrollThroughPages(driver, link, word)
     break
