@@ -151,21 +151,30 @@ wordList3 = []
 wordList4 = []
 wordList5 = []
 wordList6 = []
+wordList7 = []
+wordList8 = []
+wordList9 = []
 wordFile = open("New Food List.txt", "r")
 length = (len(wordFile.readlines()))
 wordFile.close()
 wordFile = open("New Food List.txt", "r")
 counter = 0
 for searchWord in wordFile:
-    if counter >= length/6 * 5:
+    if counter >= length/9 * 8:
+        wordList9.append(searchWord.replace("\n", ""))
+    elif counter >= length/9 * 7:
+        wordList8.append(searchWord.replace("\n", ""))
+    elif counter >= length/9 * 6:
+        wordList7.append(searchWord.replace("\n", ""))
+    elif counter >= length/9 * 5:
         wordList6.append(searchWord.replace("\n", ""))
-    elif counter >= length/6 * 4:
+    elif counter >= length/9 * 4:
         wordList5.append(searchWord.replace("\n", ""))
-    elif counter >= length/6 * 3:
+    elif counter >= length/9 * 3:
         wordList4.append(searchWord.replace("\n", ""))
-    elif counter >= length/6 * 2:
+    elif counter >= length/9 * 2:
         wordList3.append(searchWord.replace("\n", ""))
-    elif counter >= length/6:
+    elif counter >= length/9:
         wordList2.append(searchWord.replace("\n", ""))
     else:
         wordList1.append(searchWord.replace("\n", ""))
@@ -179,12 +188,19 @@ t3 = threading.Thread(target=threadStart, args=(wordList3,"3"))
 t4 = threading.Thread(target=threadStart, args=(wordList1,"4"))
 t5 = threading.Thread(target=threadStart, args=(wordList2,"5"))
 t6 = threading.Thread(target=threadStart, args=(wordList3,"6"))
+t7 = threading.Thread(target=threadStart, args=(wordList1,"7"))
+t8 = threading.Thread(target=threadStart, args=(wordList2,"8"))
+t9 = threading.Thread(target=threadStart, args=(wordList3,"9"))
+
 t1.start()
 t2.start()
 t3.start()
 t4.start()
 t5.start()
 t6.start()
+t7.start()
+t8.start()
+t9.start()
 
 t1.join()
 t2.join()
@@ -192,6 +208,9 @@ t3.join()
 t4.join()
 t5.join()
 t6.join()
+t7.join()
+t8.join()
+t9.join()
 
 # appending all csv files together and then deleting first 3
 file1 = pd.read_csv("recipes1.csv", encoding="utf-8")
@@ -200,9 +219,16 @@ file3 = pd.read_csv("recipes3.csv", encoding="utf-8")
 file4 = pd.read_csv("recipes4.csv", encoding="utf-8")
 file5 = pd.read_csv("recipes5.csv", encoding="utf-8")
 file6 = pd.read_csv("recipes6.csv", encoding="utf-8")
+file7 = pd.read_csv("recipes7.csv", encoding="utf-8")
+file8 = pd.read_csv("recipes8.csv", encoding="utf-8")
+file9 = pd.read_csv("recipes9.csv", encoding="utf-8")
+
 df_master = file1.merge(file2, on="title", how='outer')\
     .merge(file3, on="title", how='outer')\
     .merge(file4, on="title", how='outer')\
     .merge(file5, on="title", how='outer')\
-    .merge(file6, on="title", how='outer')
+    .merge(file6, on="title", how='outer')\
+    .merge(file7, on="title", how='outer')\
+    .merge(file8, on="title", how='outer')\
+    .merge(file9, on="title", how='outer')
 df_master
