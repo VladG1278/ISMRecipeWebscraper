@@ -7,10 +7,11 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 import csv
 import pandas as pd
+import threading
 
 
 # https://stackoverflow.com/questions/9567069/checking-if-an-element-exists-with-python-selenium
-def check_exists_by_xpath(xpath):
+def check_exists_by_xpath(xpath, driver):
     try:
         driver.find_element(By.XPATH, xpath)
     except NoSuchElementException:
@@ -18,16 +19,17 @@ def check_exists_by_xpath(xpath):
     return True
 
 
-def check_exists_by_id(id):
+def check_exists_by_id(id, driver):
     try:
         driver.find_element(By.ID, id)
     except NoSuchElementException:
         return False
     return True
 
+
 # checks if the title of a recipe already exists, if it does return the row where it exists
-def check_title(title):
-    with open('recipes.csv', newline='') as f:
+def check_title(title, num):
+    with open('recipes' + num + '.csv', newline='', encoding="utf-8") as f:
         rowCounter = 0
         reader = csv.reader(f)
         for row in reader:
@@ -36,14 +38,15 @@ def check_title(title):
         rowCounter = rowCounter + 1
     return -1
 
+
 # adds a key word to an already existing recipe instead of adding the saem recipe
-def addKeyWord(title, searchWord):
-    row = check_title(title)
+def addKeyWord(title, searchWord, num):
+    row = check_title(title, num)
     if row > 0:
-        df = pd.read_csv("recipes.csv")
+        df = pd.read_csv("recipes" + num + ".csv", encoding="utf-8")
         if df.loc[row, 'keywords'].find(searchWord) != -1:
             df.loc[row, 'keywords'] = "|" + df.loc[row, 'keywords'] + searchWord
-            df.to_csv("recipes.csv", index=False)
+            df.to_csv("recipes" + num + ".csv", index=False)
         df.close()
         return False
     return True
@@ -51,24 +54,23 @@ def addKeyWord(title, searchWord):
 
 # this link is the original scroll page
 # scrolls through all the pages
-def scrollThroughPages(driver, link, searchWord):
-    onePageRecipieGatherer(driver, link, searchWord)
+def scrollThroughPages(driver, link, searchWord, num):
+    onePageRecipieGatherer(driver, link, searchWord, num)
     driver.get(link)
-    while check_exists_by_xpath("//*[@id=\"pagination_1-0\"]/li[6]/a"):
+    while check_exists_by_xpath("//*[@id=\"pagination_1-0\"]/li[6]/a", driver):
         driver.get(link)
         newLink = driver.find_element(By.XPATH, "//*[@id=\"pagination_1-0\"]/li[6]/a").get_attribute("href")
-        # driver.close()
-        onePageRecipieGatherer(driver, newLink, searchWord)
+        onePageRecipieGatherer(driver, newLink, searchWord, num)
         link = newLink
-    driver.close()
+
 
 
 # saves all recipes on a page
-def onePageRecipieGatherer(driver, link, searchWord):
+def onePageRecipieGatherer(driver, link, searchWord, num):
     driver.get(link)
     counter = 0
     id = "mntl-card-list-items_1-0"
-    while check_exists_by_id(id):
+    while check_exists_by_id(id, driver):
         newLink = driver.find_element("id", id).get_attribute("href")
         if not newLink.find("/recipe/") > 0:
             counter = counter + 1
@@ -117,39 +119,66 @@ def onePageRecipieGatherer(driver, link, searchWord):
             counter = counter + 1
             keywords = searchWord.replace(" ", "_")
             id = "mntl-card-list-items_1-0-" + str(counter)
-            with open('recipes.csv', 'a', newline='') as file:
+            with open('recipes' + num + '.csv', 'a', newline='', encoding="utf-8") as file:
                 writer = csv.writer(file)
-                if addKeyWord(titleResults, searchWord):
+                if addKeyWord(titleResults, searchWord, num):
                     if len(splitInfoResults) >= 4:
                         writer.writerow([titleResults, splitInfoResults[0], splitInfoResults[1], splitInfoResults[2],
-                                         splitInfoResults[3], ingredients, steps, keywords])
-            file.close()
-        break
+                                        splitInfoResults[3], ingredients, steps, keywords])
 
+
+# threadInitializer
+def threadStart(wordList, num):
+    #options = Options()
+    #options.add_argument('--headless=new')
+    #driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome()
+    with open('recipes' + num + '.csv', 'w', newline='', encoding="utf-8") as file:
+        writer = csv.writer(file)
+        field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
+    file.close()
+    for word in wordList:
+        link = "https://www.allrecipes.com/search?q=" + word.replace(" ", "%20")
+        scrollThroughPages(driver, link, word, num)
+    print("Thread " + num + " Finished")
 
 # main
-options = Options()
-options.add_argument('--headless=new')
-driver = webdriver.Chrome(options=options)
 
 # opens wordList and makes csv file
-wordList = []
-wordFile = open("C:\\Users\\monke\\Downloads\\School\\ISM\\List of Food.txt", "r")
-for searchWord in wordFile:
-    wordList.append(searchWord)
+wordList1 = []
+wordList2 = []
+wordList3 = []
+wordFile = open("New Food List.txt", "r")
+length = (len(wordFile.readlines()))
 wordFile.close()
-with open('recipes.csv', 'w', newline='') as file:
-    writer = csv.writer(file)
-    field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
-file.close()
+wordFile = open("New Food List.txt", "r")
+counter = 0
+for searchWord in wordFile:
+    if counter >= length/3 * 2:
+        wordList3.append(searchWord.replace("\n", ""))
+    elif counter >= length/3:
+        wordList2.append(searchWord.replace("\n", ""))
+    else:
+        wordList1.append(searchWord.replace("\n", ""))
+    counter = counter + 1
+wordFile.close()
 
-#insert threads here I think
+# Create and start threads
+t1 = threading.Thread(target=threadStart, args=(wordList1,"1"))
+t2 = threading.Thread(target=threadStart, args=(wordList2,"2"))
+t3 = threading.Thread(target=threadStart, args=(wordList3,"3"))
+t1.start()
+t2.start()
+t3.start()
+
+t1.join()
+t2.join()
+t3.join()
 
 
-for word in wordList:
-    search = word
-    link = "https://www.allrecipes.com/search?q=" + search.replace(" ", "%20")
-    scrollThroughPages(driver, link, word)
-    break
-
-# next step is to add threads then make a better word list to test
+# appending all csv files together and then deleting first 3
+file1 = pd.read_csv("recipes1.csv", encoding="utf-8")
+file2 = pd.read_csv("recipes2.csv", encoding="utf-8")
+file3 = pd.read_csv("recipes3.csv", encoding="utf-8")
+df_master = file1.merge(file2, on="title", how='outer').merge(file3, on="title", how='outer')
+df_master

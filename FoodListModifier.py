@@ -18,18 +18,22 @@ for word in file:
 file.close()
 link = ""
 print(len(words))
-for word in words:
+exists = False
+for word in words[:]:
+    results = ""
     link = "https://www.allrecipes.com/search?q=" + word.replace(" ", "%20").replace("\n", "")
     driver.get(link)
     results = driver.find_element(By.ID, "search-results_1-0").get_attribute("textContent")
-    if results.find("Please try"):
+    if results.find("Please try") > -1:
         words.remove(word)
     else:
-        elems = driver.find_elements(By.XPATH("//a[@href]"))
+        elems = driver.find_elements(By.XPATH, "//a[@href]")
         for elem in elems:
-            if not elem.find("https://www.allrecipes.com/recipe/"):
-                words.remove(word)
+            if elem.get_attribute("href").find("https://www.allrecipes.com/recipe/") >= 0:
+                exists = True
                 break
+        if not exists:
+            words.remove(word)
 file = open("New Food List.txt", "w")
 for word in words:
     file.write(word)
