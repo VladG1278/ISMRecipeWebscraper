@@ -129,10 +129,10 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
 
 # threadInitializer
 def threadStart(wordList, num):
-    #options = Options()
-    #options.add_argument('--headless=new')
-    #driver = webdriver.Chrome(options=options)
-    driver = webdriver.Chrome()
+    options = Options()
+    options.add_argument('--headless=new')
+    driver = webdriver.Chrome(options=options)
+
     with open('recipes' + num + '.csv', 'w', newline='', encoding="utf-8") as file:
         writer = csv.writer(file)
         field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
@@ -148,15 +148,24 @@ def threadStart(wordList, num):
 wordList1 = []
 wordList2 = []
 wordList3 = []
+wordList4 = []
+wordList5 = []
+wordList6 = []
 wordFile = open("New Food List.txt", "r")
 length = (len(wordFile.readlines()))
 wordFile.close()
 wordFile = open("New Food List.txt", "r")
 counter = 0
 for searchWord in wordFile:
-    if counter >= length/3 * 2:
+    if counter >= length/6 * 5:
+        wordList6.append(searchWord.replace("\n", ""))
+    elif counter >= length/6 * 4:
+        wordList5.append(searchWord.replace("\n", ""))
+    elif counter >= length/6 * 3:
+        wordList4.append(searchWord.replace("\n", ""))
+    elif counter >= length/6 * 2:
         wordList3.append(searchWord.replace("\n", ""))
-    elif counter >= length/3:
+    elif counter >= length/6:
         wordList2.append(searchWord.replace("\n", ""))
     else:
         wordList1.append(searchWord.replace("\n", ""))
@@ -167,18 +176,33 @@ wordFile.close()
 t1 = threading.Thread(target=threadStart, args=(wordList1,"1"))
 t2 = threading.Thread(target=threadStart, args=(wordList2,"2"))
 t3 = threading.Thread(target=threadStart, args=(wordList3,"3"))
+t4 = threading.Thread(target=threadStart, args=(wordList1,"4"))
+t5 = threading.Thread(target=threadStart, args=(wordList2,"5"))
+t6 = threading.Thread(target=threadStart, args=(wordList3,"6"))
 t1.start()
 t2.start()
 t3.start()
+t4.start()
+t5.start()
+t6.start()
 
 t1.join()
 t2.join()
 t3.join()
-
+t4.join()
+t5.join()
+t6.join()
 
 # appending all csv files together and then deleting first 3
 file1 = pd.read_csv("recipes1.csv", encoding="utf-8")
 file2 = pd.read_csv("recipes2.csv", encoding="utf-8")
 file3 = pd.read_csv("recipes3.csv", encoding="utf-8")
-df_master = file1.merge(file2, on="title", how='outer').merge(file3, on="title", how='outer')
+file4 = pd.read_csv("recipes4.csv", encoding="utf-8")
+file5 = pd.read_csv("recipes5.csv", encoding="utf-8")
+file6 = pd.read_csv("recipes6.csv", encoding="utf-8")
+df_master = file1.merge(file2, on="title", how='outer')\
+    .merge(file3, on="title", how='outer')\
+    .merge(file4, on="title", how='outer')\
+    .merge(file5, on="title", how='outer')\
+    .merge(file6, on="title", how='outer')
 df_master
