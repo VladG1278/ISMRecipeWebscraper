@@ -231,4 +231,9 @@ df_master = file1.merge(file2, on="title", how='outer')\
     .merge(file7, on="title", how='outer')\
     .merge(file8, on="title", how='outer')\
     .merge(file9, on="title", how='outer')
+with open('recipes.csv', 'w', newline='', encoding="utf-8") as file:
+    writer = csv.writer(file)
+    field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
+file.close()
 df_master
+df_master.to_csv("recipes.csv", encoding="utf-8", index=False)
