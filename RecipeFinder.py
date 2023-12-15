@@ -1,3 +1,4 @@
+import pandas
 import requests
 from pandas import merge_ordered
 from selenium import webdriver
@@ -131,10 +132,10 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
 
 # threadInitializer
 def threadStart(wordList, num):
-    options = Options()
-    options.add_argument('--headless=new')
-    driver = webdriver.Chrome(options=options)
-
+    # options = Options()
+    # options.add_argument('--headless=new')
+    # driver = webdriver.Chrome(options=options)
+    driver = webdriver.Chrome()
     with open('recipes' + num + '.csv', 'w', newline='', encoding="utf-8") as file:
         writer = csv.writer(file)
         field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
@@ -213,4 +214,21 @@ t6.join()
 t7.join()
 t8.join()
 t9.join()
+
+df1 = pandas.read_csv("recipes1.csv", encoding="utf-8")
+df2 = pandas.read_csv("recipes2.csv", encoding="utf-8")
+df3 = pandas.read_csv("recipes3.csv", encoding="utf-8")
+df4 = pandas.read_csv("recipes4.csv", encoding="utf-8")
+df5 = pandas.read_csv("recipes5.csv", encoding="utf-8")
+df6 = pandas.read_csv("recipes6.csv", encoding="utf-8")
+df7 = pandas.read_csv("recipes7.csv", encoding="utf-8")
+df8 = pandas.read_csv("recipes8.csv", encoding="utf-8")
+df9 = pandas.read_csv("recipes9.csv", encoding="utf-8")
+df10 = pandas.concat([df1, df2, df3, df4, df5, df6, df7, df8, df9], ignore_index=True)
+with open('recipes.csv', 'w', newline='', encoding="utf-8") as file:
+    writer = csv.writer(file)
+    field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
+file.close()
+df10.to_csv('recipes.csv', index=False)
+
 
