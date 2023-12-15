@@ -1,4 +1,5 @@
 import requests
+from pandas import merge_ordered
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
@@ -8,6 +9,7 @@ from selenium.common.exceptions import NoSuchElementException
 import csv
 import pandas as pd
 import threading
+import glob
 
 
 # https://stackoverflow.com/questions/9567069/checking-if-an-element-exists-with-python-selenium
@@ -185,12 +187,12 @@ wordFile.close()
 t1 = threading.Thread(target=threadStart, args=(wordList1,"1"))
 t2 = threading.Thread(target=threadStart, args=(wordList2,"2"))
 t3 = threading.Thread(target=threadStart, args=(wordList3,"3"))
-t4 = threading.Thread(target=threadStart, args=(wordList1,"4"))
-t5 = threading.Thread(target=threadStart, args=(wordList2,"5"))
-t6 = threading.Thread(target=threadStart, args=(wordList3,"6"))
-t7 = threading.Thread(target=threadStart, args=(wordList1,"7"))
-t8 = threading.Thread(target=threadStart, args=(wordList2,"8"))
-t9 = threading.Thread(target=threadStart, args=(wordList3,"9"))
+t4 = threading.Thread(target=threadStart, args=(wordList4,"4"))
+t5 = threading.Thread(target=threadStart, args=(wordList5,"5"))
+t6 = threading.Thread(target=threadStart, args=(wordList6,"6"))
+t7 = threading.Thread(target=threadStart, args=(wordList7,"7"))
+t8 = threading.Thread(target=threadStart, args=(wordList8,"8"))
+t9 = threading.Thread(target=threadStart, args=(wordList9,"9"))
 
 t1.start()
 t2.start()
@@ -212,28 +214,3 @@ t7.join()
 t8.join()
 t9.join()
 
-# appending all csv files together and then deleting first 3
-file1 = pd.read_csv("recipes1.csv", encoding="utf-8")
-file2 = pd.read_csv("recipes2.csv", encoding="utf-8")
-file3 = pd.read_csv("recipes3.csv", encoding="utf-8")
-file4 = pd.read_csv("recipes4.csv", encoding="utf-8")
-file5 = pd.read_csv("recipes5.csv", encoding="utf-8")
-file6 = pd.read_csv("recipes6.csv", encoding="utf-8")
-file7 = pd.read_csv("recipes7.csv", encoding="utf-8")
-file8 = pd.read_csv("recipes8.csv", encoding="utf-8")
-file9 = pd.read_csv("recipes9.csv", encoding="utf-8")
-
-df_master = file1.merge(file2, on="title", how='outer')\
-    .merge(file3, on="title", how='outer')\
-    .merge(file4, on="title", how='outer')\
-    .merge(file5, on="title", how='outer')\
-    .merge(file6, on="title", how='outer')\
-    .merge(file7, on="title", how='outer')\
-    .merge(file8, on="title", how='outer')\
-    .merge(file9, on="title", how='outer')
-with open('recipes.csv', 'w', newline='', encoding="utf-8") as file:
-    writer = csv.writer(file)
-    field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
-file.close()
-df_master
-df_master.to_csv("recipes.csv", encoding="utf-8", index=False)
