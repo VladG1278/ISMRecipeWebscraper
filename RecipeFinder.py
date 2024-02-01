@@ -1,6 +1,5 @@
 import pandas
 import requests
-from pandas import merge_ordered
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
@@ -10,7 +9,8 @@ from selenium.common.exceptions import NoSuchElementException
 import csv
 import pandas as pd
 import threading
-import glob
+import time
+
 
 
 # https://stackoverflow.com/questions/9567069/checking-if-an-element-exists-with-python-selenium
@@ -71,6 +71,24 @@ def scrollThroughPages(driver, link, searchWord, num):
 # saves all recipes on a page
 def onePageRecipieGatherer(driver, link, searchWord, num):
     driver.get(link)
+
+    # Force load page to grab all lazy loaded images
+    # https://stackoverflow.com/questions/62600288/how-to-handle-lazy-loaded-images-in-selenium
+    SCROLL_PAUSE_TIME = 0.5
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    while True:
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(SCROLL_PAUSE_TIME)
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        if new_height == last_height:
+            break
+        last_height = new_height
+    driver.implicitly_wait(10)
+    images = driver.find_elements(By.XPATH, "//div[@class='img-placeholder']/img")
+    imageLink = []
+    for image in images[:-1]:
+        imageLink.append(image.get_attribute("src"))
+    # print(str(len(images)) + " -- " + str(len(imageLink)) + " -- " + searchWord)
     counter = 0
     id = "mntl-card-list-items_1-0"
     while check_exists_by_id(id, driver):
@@ -82,22 +100,23 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
             secondTab = requests.get(newLink)
             soup = BeautifulSoup(secondTab.content, "html.parser")
             titleResults = soup.find(id="article-heading_1-0").text.replace("\n", "")
-
             # Grabbing Information WebScraper
             infoResults = soup.find(id="recipe-details_1-0")
-
             # Formatting
-            if infoResults.text is not None:
-                word = re.sub(r'someword=|\,.*|\#.*', '', infoResults.text.replace("Jump to Nutrition Facts", ""))
-                infoResults = re.sub(r'\n+', '>', word).strip()
-                splitInfoResults = re.split("[:>]", infoResults)
-                splitInfoResults = [e.strip() for e in splitInfoResults]
-                for index in splitInfoResults[:]:
-                    if index == '':
-                        splitInfoResults.remove(index)
-                        continue
-                    if not index[0:1].isdigit():
-                        splitInfoResults.remove(index)
+            if infoResults is not None:
+                if infoResults.text is not None:
+                    word = re.sub(r'someword=|\,.*|\#.*', '', infoResults.text.replace("Jump to Nutrition Facts", ""))
+                    infoResults = re.sub(r'\n+', '>', word).strip()
+                    splitInfoResults = re.split("[:>]", infoResults)
+                    splitInfoResults = [e.strip() for e in splitInfoResults]
+                    for index in splitInfoResults[:]:
+                        if index == '':
+                            splitInfoResults.remove(index)
+                            continue
+                        if not index[0:1].isdigit():
+                            splitInfoResults.remove(index)
+            else:
+                splitInfoResults = ["none", "none", "none", "none"]
             # Getting ingredients
             scrapedIngredients = soup.findAll(class_="mntl-structured-ingredients__list-item")
             ingredients = ""
@@ -119,26 +138,26 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
                 stepCounter = stepCounter + 1
                 steps = steps + "]" + str(stepCounter) + "." + step.text.strip()
             steps = re.sub(r'\s+', "_", steps)
-            counter = counter + 1
             keywords = searchWord.replace(" ", "_")
+
             id = "mntl-card-list-items_1-0-" + str(counter)
             with open('recipes' + num + '.csv', 'a', newline='', encoding="utf-8") as file:
                 writer = csv.writer(file)
                 if addKeyWord(titleResults, searchWord, num):
                     if len(splitInfoResults) >= 4:
                         writer.writerow([titleResults, splitInfoResults[0], splitInfoResults[1], splitInfoResults[2],
-                                        splitInfoResults[3], ingredients, steps, keywords])
+                                         splitInfoResults[3], ingredients, steps, keywords, imageLink[counter]])
+            counter = counter + 1
 
 
 # threadInitializer
 def threadStart(wordList, num):
-    # options = Options()
-    # options.add_argument('--headless=new')
-    # driver = webdriver.Chrome(options=options)
-    driver = webdriver.Chrome()
+    options = Options()
+    options.add_argument('--headless=new')
+    driver = webdriver.Chrome(options=options)
     with open('recipes' + num + '.csv', 'w', newline='', encoding="utf-8") as file:
         writer = csv.writer(file)
-        field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
+        field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords", "imageLinks"]
     file.close()
     for word in wordList:
         link = "https://www.allrecipes.com/search?q=" + word.replace(" ", "%20")
@@ -227,7 +246,7 @@ df9 = pandas.read_csv("recipes9.csv", encoding="utf-8")
 df10 = pandas.concat([df1, df2, df3, df4, df5, df6, df7, df8, df9], ignore_index=True)
 with open('recipes.csv', 'w', newline='', encoding="utf-8") as file:
     writer = csv.writer(file)
-    field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
+    field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords", "imageLinks"]
 file.close()
 df10.to_csv('recipes.csv', index=False)
 
