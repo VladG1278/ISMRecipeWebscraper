@@ -1,6 +1,5 @@
-import pandas
 import requests
-from pandas import merge_ordered
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
@@ -8,10 +7,7 @@ import re
 from selenium.webdriver.common.by import By
 from selenium.common.exceptions import NoSuchElementException
 import csv
-import pandas as pd
-import threading
-import glob
-
+import time
 
 # https://stackoverflow.com/questions/9567069/checking-if-an-element-exists-with-python-selenium
 def check_exists_by_xpath(xpath, driver):
@@ -67,37 +63,54 @@ def scrollThroughPages(driver, link, searchWord, num):
         link = newLink
 
 
-
 # saves all recipes on a page
 def onePageRecipieGatherer(driver, link, searchWord, num):
     driver.get(link)
+    # Force load page to get all lazy loaded images
+    # https://stackoverflow.com/questions/62600288/how-to-handle-lazy-loaded-images-in-selenium
+    SCROLL_PAUSE_TIME = 0.5
+    last_height = driver.execute_script("return document.body.scrollHeight")
+    while True:
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(SCROLL_PAUSE_TIME)
+        new_height = driver.execute_script("return document.body.scrollHeight")
+        if new_height == last_height:
+            break
+        last_height = new_height
+    driver.implicitly_wait(10)
+    images = driver.find_elements(By.XPATH, "//div[@class='img-placeholder']/img")
+    imageLink = []
+    for image in images[:-1]:
+        imageLink.append(image.get_attribute("src"))
     counter = 0
     id = "mntl-card-list-items_1-0"
     while check_exists_by_id(id, driver):
         newLink = driver.find_element("id", id).get_attribute("href")
         if not newLink.find("/recipe/") > 0:
+            images.append(counter)
             counter = counter + 1
             id = "mntl-card-list-items_1-0-" + str(counter)
         else:
             secondTab = requests.get(newLink)
             soup = BeautifulSoup(secondTab.content, "html.parser")
             titleResults = soup.find(id="article-heading_1-0").text.replace("\n", "")
-
             # Grabbing Information WebScraper
             infoResults = soup.find(id="recipe-details_1-0")
-
             # Formatting
-            if infoResults.text is not None:
-                word = re.sub(r'someword=|\,.*|\#.*', '', infoResults.text.replace("Jump to Nutrition Facts", ""))
-                infoResults = re.sub(r'\n+', '>', word).strip()
-                splitInfoResults = re.split("[:>]", infoResults)
-                splitInfoResults = [e.strip() for e in splitInfoResults]
-                for index in splitInfoResults[:]:
-                    if index == '':
-                        splitInfoResults.remove(index)
-                        continue
-                    if not index[0:1].isdigit():
-                        splitInfoResults.remove(index)
+            if infoResults is not None:
+                if infoResults.text is not None:
+                    word = re.sub(r'someword=|\,.*|\#.*', '', infoResults.text.replace("Jump to Nutrition Facts", ""))
+                    infoResults = re.sub(r'\n+', '>', word).strip()
+                    splitInfoResults = re.split("[:>]", infoResults)
+                    splitInfoResults = [e.strip() for e in splitInfoResults]
+                    for index in splitInfoResults[:]:
+                        if index == '':
+                            splitInfoResults.remove(index)
+                            continue
+                        if not index[0:1].isdigit():
+                            splitInfoResults.remove(index)
+            else:
+                splitInfoResults = ["none", "none", "none", "none"]
             # Getting ingredients
             scrapedIngredients = soup.findAll(class_="mntl-structured-ingredients__list-item")
             ingredients = ""
@@ -119,116 +132,26 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
                 stepCounter = stepCounter + 1
                 steps = steps + "]" + str(stepCounter) + "." + step.text.strip()
             steps = re.sub(r'\s+', "_", steps)
-            counter = counter + 1
             keywords = searchWord.replace(" ", "_")
+
             id = "mntl-card-list-items_1-0-" + str(counter)
             with open('recipes' + num + '.csv', 'a', newline='', encoding="utf-8") as file:
                 writer = csv.writer(file)
                 if addKeyWord(titleResults, searchWord, num):
                     if len(splitInfoResults) >= 4:
                         writer.writerow([titleResults, splitInfoResults[0], splitInfoResults[1], splitInfoResults[2],
-                                        splitInfoResults[3], ingredients, steps, keywords])
+                                         splitInfoResults[3], ingredients, steps, keywords, imageLink[counter]])
+            counter = counter + 1
+
+# Main
+driver = webdriver.Chrome()
+wordList = ["chicken", "pancakes", "beef", "cake", "lollipop", "food", "turtle", "meatballs", "pasta"]
+for word in wordList:
+    link = "https://www.allrecipes.com/search?q=" + word.replace(" ", "%20")
+    scrollThroughPages(driver, link, word, "1")
 
 
-# threadInitializer
-def threadStart(wordList, num):
-    # options = Options()
-    # options.add_argument('--headless=new')
-    # driver = webdriver.Chrome(options=options)
-    driver = webdriver.Chrome()
-    with open('recipes' + num + '.csv', 'w', newline='', encoding="utf-8") as file:
-        writer = csv.writer(file)
-        field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
-    file.close()
-    for word in wordList:
-        link = "https://www.allrecipes.com/search?q=" + word.replace(" ", "%20")
-        scrollThroughPages(driver, link, word, num)
-    print("Thread " + num + " Finished")
 
-# main
 
-# opens wordList and makes csv file
-wordList1 = []
-wordList2 = []
-wordList3 = []
-wordList4 = []
-wordList5 = []
-wordList6 = []
-wordList7 = []
-wordList8 = []
-wordList9 = []
-wordFile = open("New Food List.txt", "r")
-length = (len(wordFile.readlines()))
-wordFile.close()
-wordFile = open("New Food List.txt", "r")
-counter = 0
-for searchWord in wordFile:
-    if counter >= length/9 * 8:
-        wordList9.append(searchWord.replace("\n", ""))
-    elif counter >= length/9 * 7:
-        wordList8.append(searchWord.replace("\n", ""))
-    elif counter >= length/9 * 6:
-        wordList7.append(searchWord.replace("\n", ""))
-    elif counter >= length/9 * 5:
-        wordList6.append(searchWord.replace("\n", ""))
-    elif counter >= length/9 * 4:
-        wordList5.append(searchWord.replace("\n", ""))
-    elif counter >= length/9 * 3:
-        wordList4.append(searchWord.replace("\n", ""))
-    elif counter >= length/9 * 2:
-        wordList3.append(searchWord.replace("\n", ""))
-    elif counter >= length/9:
-        wordList2.append(searchWord.replace("\n", ""))
-    else:
-        wordList1.append(searchWord.replace("\n", ""))
-    counter = counter + 1
-wordFile.close()
-
-# Create and start threads
-t1 = threading.Thread(target=threadStart, args=(wordList1,"1"))
-t2 = threading.Thread(target=threadStart, args=(wordList2,"2"))
-t3 = threading.Thread(target=threadStart, args=(wordList3,"3"))
-t4 = threading.Thread(target=threadStart, args=(wordList4,"4"))
-t5 = threading.Thread(target=threadStart, args=(wordList5,"5"))
-t6 = threading.Thread(target=threadStart, args=(wordList6,"6"))
-t7 = threading.Thread(target=threadStart, args=(wordList7,"7"))
-t8 = threading.Thread(target=threadStart, args=(wordList8,"8"))
-t9 = threading.Thread(target=threadStart, args=(wordList9,"9"))
-
-t1.start()
-t2.start()
-t3.start()
-t4.start()
-t5.start()
-t6.start()
-t7.start()
-t8.start()
-t9.start()
-
-t1.join()
-t2.join()
-t3.join()
-t4.join()
-t5.join()
-t6.join()
-t7.join()
-t8.join()
-t9.join()
-
-df1 = pandas.read_csv("recipes1.csv", encoding="utf-8")
-df2 = pandas.read_csv("recipes2.csv", encoding="utf-8")
-df3 = pandas.read_csv("recipes3.csv", encoding="utf-8")
-df4 = pandas.read_csv("recipes4.csv", encoding="utf-8")
-df5 = pandas.read_csv("recipes5.csv", encoding="utf-8")
-df6 = pandas.read_csv("recipes6.csv", encoding="utf-8")
-df7 = pandas.read_csv("recipes7.csv", encoding="utf-8")
-df8 = pandas.read_csv("recipes8.csv", encoding="utf-8")
-df9 = pandas.read_csv("recipes9.csv", encoding="utf-8")
-df10 = pandas.concat([df1, df2, df3, df4, df5, df6, df7, df8, df9], ignore_index=True)
-with open('recipes.csv', 'w', newline='', encoding="utf-8") as file:
-    writer = csv.writer(file)
-    field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords"]
-file.close()
-df10.to_csv('recipes.csv', index=False)
 
 
