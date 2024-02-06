@@ -12,7 +12,6 @@ import threading
 import time
 
 
-
 # https://stackoverflow.com/questions/9567069/checking-if-an-element-exists-with-python-selenium
 def check_exists_by_xpath(xpath, driver):
     try:
@@ -65,7 +64,6 @@ def scrollThroughPages(driver, link, searchWord, num):
         newLink = driver.find_element(By.XPATH, "//*[@id=\"pagination_1-0\"]/li[6]/a").get_attribute("href")
         onePageRecipieGatherer(driver, newLink, searchWord, num)
         link = newLink
-
 
 
 # saves all recipes on a page
@@ -146,7 +144,7 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
                 if addKeyWord(titleResults, searchWord, num):
                     if len(splitInfoResults) >= 4:
                         writer.writerow([titleResults, splitInfoResults[0], splitInfoResults[1], splitInfoResults[2],
-                                         splitInfoResults[3], ingredients, steps, keywords, imageLink[counter]])
+                                         splitInfoResults[3], ingredients, steps, keywords, imageLink[counter], link])
             counter = counter + 1
 
 
@@ -157,15 +155,17 @@ def threadStart(wordList, num):
     driver = webdriver.Chrome(options=options)
     with open('recipes' + num + '.csv', 'w', newline='', encoding="utf-8") as file:
         writer = csv.writer(file)
-        field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords", "imageLinks"]
+        field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords",
+                 "imageLinks", "link"]
     file.close()
     for word in wordList:
         link = "https://www.allrecipes.com/search?q=" + word.replace(" ", "%20")
         scrollThroughPages(driver, link, word, num)
     print("Thread " + num + " Finished")
 
-# main
 
+# main
+start_time = time.time()
 # opens wordList and makes csv file
 wordList1 = []
 wordList2 = []
@@ -182,21 +182,21 @@ wordFile.close()
 wordFile = open("New Food List.txt", "r")
 counter = 0
 for searchWord in wordFile:
-    if counter >= length/9 * 8:
+    if counter >= length / 9 * 8:
         wordList9.append(searchWord.replace("\n", ""))
-    elif counter >= length/9 * 7:
+    elif counter >= length / 9 * 7:
         wordList8.append(searchWord.replace("\n", ""))
-    elif counter >= length/9 * 6:
+    elif counter >= length / 9 * 6:
         wordList7.append(searchWord.replace("\n", ""))
-    elif counter >= length/9 * 5:
+    elif counter >= length / 9 * 5:
         wordList6.append(searchWord.replace("\n", ""))
-    elif counter >= length/9 * 4:
+    elif counter >= length / 9 * 4:
         wordList5.append(searchWord.replace("\n", ""))
-    elif counter >= length/9 * 3:
+    elif counter >= length / 9 * 3:
         wordList4.append(searchWord.replace("\n", ""))
-    elif counter >= length/9 * 2:
+    elif counter >= length / 9 * 2:
         wordList3.append(searchWord.replace("\n", ""))
-    elif counter >= length/9:
+    elif counter >= length / 9:
         wordList2.append(searchWord.replace("\n", ""))
     else:
         wordList1.append(searchWord.replace("\n", ""))
@@ -204,15 +204,15 @@ for searchWord in wordFile:
 wordFile.close()
 
 # Create and start threads
-t1 = threading.Thread(target=threadStart, args=(wordList1,"1"))
-t2 = threading.Thread(target=threadStart, args=(wordList2,"2"))
-t3 = threading.Thread(target=threadStart, args=(wordList3,"3"))
-t4 = threading.Thread(target=threadStart, args=(wordList4,"4"))
-t5 = threading.Thread(target=threadStart, args=(wordList5,"5"))
-t6 = threading.Thread(target=threadStart, args=(wordList6,"6"))
-t7 = threading.Thread(target=threadStart, args=(wordList7,"7"))
-t8 = threading.Thread(target=threadStart, args=(wordList8,"8"))
-t9 = threading.Thread(target=threadStart, args=(wordList9,"9"))
+t1 = threading.Thread(target=threadStart, args=(wordList1, "1"))
+t2 = threading.Thread(target=threadStart, args=(wordList2, "2"))
+t3 = threading.Thread(target=threadStart, args=(wordList3, "3"))
+t4 = threading.Thread(target=threadStart, args=(wordList4, "4"))
+t5 = threading.Thread(target=threadStart, args=(wordList5, "5"))
+t6 = threading.Thread(target=threadStart, args=(wordList6, "6"))
+t7 = threading.Thread(target=threadStart, args=(wordList7, "7"))
+t8 = threading.Thread(target=threadStart, args=(wordList8, "8"))
+t9 = threading.Thread(target=threadStart, args=(wordList9, "9"))
 
 t1.start()
 t2.start()
@@ -246,8 +246,8 @@ df9 = pandas.read_csv("recipes9.csv", encoding="utf-8")
 df10 = pandas.concat([df1, df2, df3, df4, df5, df6, df7, df8, df9], ignore_index=True)
 with open('recipes.csv', 'w', newline='', encoding="utf-8") as file:
     writer = csv.writer(file)
-    field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords", "imageLinks"]
+    field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords", "imageLinks", "link"]
 file.close()
 df10.to_csv('recipes.csv', index=False)
-
-
+end_time = time.time()
+print("Time taken: ", end_time - start_time, "seconds")
