@@ -124,7 +124,6 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
                 SIIndex += 1
             SIFinal = "|".join(SI)
             # Getting ingredients
-            print(SIFinal)
             scrapedIngredients = soup.findAll(class_="mntl-structured-ingredients__list-item")
             ingredients = ""
             for ingredient in scrapedIngredients:
@@ -136,10 +135,15 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
 
             # Instructions
             # https://stackoverflow.com/questions/32063985/deleting-a-div-with-a-particular-class-using-beautifulsoup
+            # delete = soup.findAll(class_="figure-article-caption-owner")
+            # for caption in delete:
+            #     caption.decompose()
+            # rawSteps = soup.findAll(class_="comp mntl-sc-block-group--LI mntl-sc-block mntl-sc-block-startgroup")
+
             delete = soup.findAll(class_="figure-article-caption-owner")
             for caption in delete:
                 caption.decompose()
-            rawSteps = soup.findAll(class_="comp mntl-sc-block-group--LI mntl-sc-block mntl-sc-block-startgroup")
+            rawSteps = soup.findAll(class_="comp mntl-sc-block mntl-sc-block-startgroup mntl-sc-block-group--OL")
             steps = ""
             stepCounter = 0
             for step in rawSteps:
@@ -147,7 +151,6 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
                 steps = steps + "]" + str(stepCounter) + "." + step.text.strip()
             steps = re.sub(r'\s+', "_", steps)
             keywords = searchWord.replace(" ", "_")
-
             id = "mntl-card-list-items_" + str(counter) + "-0"
             with open('recipes' + num + '.csv', 'a', newline='', encoding="utf-8") as file:
                 writer = csv.writer(file)
