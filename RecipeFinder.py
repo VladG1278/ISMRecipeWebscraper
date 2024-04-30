@@ -28,6 +28,12 @@ def check_exists_by_id(id, driver):
         return False
     return True
 
+def findNumber (test):
+    index = 0
+    for i in test:
+        if i.isdigit():
+            return index
+    return -1
 
 # checks if the title of a recipe already exists, if it does return the row where it exists
 def check_title(title, num):
@@ -93,29 +99,32 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
         newLink = driver.find_element("id", id).get_attribute("href")
         if not newLink.find("/recipe/") > 0:
             counter = counter + 1
-            id = "mntl-card-list-items_1-0-" + str(counter)
+            id = "mntl-card-list-items_" + str(counter) + "-0"
         else:
             secondTab = requests.get(newLink)
             soup = BeautifulSoup(secondTab.content, "html.parser")
-            titleResults = soup.find(id="article-heading_1-0").text.replace("\n", "")
+            titleResults = soup.find(id = "article-header--recipe_1-0").text.replace("\n", "")
+            #find number in titleResults
+            titleResultsSplit = re.split('\d', titleResults)
+            titleResults = titleResultsSplit[0]
+
             # Grabbing Information WebScraper
-            infoResults = soup.find(id="recipe-details_1-0")
-            # Formatting
-            if infoResults is not None:
-                if infoResults.text is not None:
-                    word = re.sub(r'someword=|\,.*|\#.*', '', infoResults.text.replace("Jump to Nutrition Facts", ""))
-                    infoResults = re.sub(r'\n+', '>', word).strip()
-                    splitInfoResults = re.split("[:>]", infoResults)
-                    splitInfoResults = [e.strip() for e in splitInfoResults]
-                    for index in splitInfoResults[:]:
-                        if index == '':
-                            splitInfoResults.remove(index)
-                            continue
-                        if not index[0:1].isdigit():
-                            splitInfoResults.remove(index)
-            else:
-                splitInfoResults = ["none", "none", "none", "none"]
+            SILabel = soup.findAll(class_="mntl-recipe-details__label")
+            SIValue = soup.findAll(class_="mntl-recipe-details__value")
+            SI = [];
+            SIIndex = 0
+            while SIIndex < len(SIValue):
+                SI.append(SILabel[SIIndex].text + SIValue[SIIndex].text)
+                SI[SIIndex] = re.sub(r'\s+', '_', SI[SIIndex])
+                temp = SI[SIIndex]
+                if temp[len(temp)-1] == '_':
+                    SI[SIIndex] = SI[SIIndex].replace('_', '')
+                SI[SIIndex] = SI[SIIndex].replace(':_', ':')
+                SI[SIIndex] = SI[SIIndex].replace(':', ':_')
+                SIIndex += 1
+            SIFinal = "|".join(SI)
             # Getting ingredients
+            print(SIFinal)
             scrapedIngredients = soup.findAll(class_="mntl-structured-ingredients__list-item")
             ingredients = ""
             for ingredient in scrapedIngredients:
@@ -123,6 +132,7 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
             word = re.sub(r'someword=|\,.*|\#.*', '', ingredients)
             ingredients = re.sub(r'\n+', '>', word).strip()
             ingredients = re.sub(r'\s+', "_", ingredients)
+
 
             # Instructions
             # https://stackoverflow.com/questions/32063985/deleting-a-div-with-a-particular-class-using-beautifulsoup
@@ -138,15 +148,13 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
             steps = re.sub(r'\s+', "_", steps)
             keywords = searchWord.replace(" ", "_")
 
-            id = "mntl-card-list-items_1-0-" + str(counter)
+            id = "mntl-card-list-items_" + str(counter) + "-0"
             with open('recipes' + num + '.csv', 'a', newline='', encoding="utf-8") as file:
                 writer = csv.writer(file)
                 if addKeyWord(titleResults, searchWord, num):
-                    if len(splitInfoResults) >= 4:
-                        writer.writerow([titleResults, splitInfoResults[0], splitInfoResults[1], splitInfoResults[2],
-                                         splitInfoResults[3], ingredients, steps, keywords, imageLink[counter], link])
+                    writer.writerow([titleResults, SIFinal, ingredients, steps, keywords, imageLink[counter], link])
             counter = counter + 1
-
+            #print(titleResults + splitInfoResults[0] + splitInfoResults[1] + splitInfoResults[2] +splitInfoResults[3] + ingredients + steps + keywords + imageLink[counter]+ newLink)
 
 # threadInitializer
 def threadStart(wordList, num):
@@ -155,7 +163,7 @@ def threadStart(wordList, num):
     driver = webdriver.Chrome(options=options)
     with open('recipes' + num + '.csv', 'w', newline='', encoding="utf-8") as file:
         writer = csv.writer(file)
-        field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords",
+        field = ["title", "information", "ingredients", "steps", "keywords",
                  "imageLinks", "link"]
     file.close()
     for word in wordList:
@@ -246,7 +254,7 @@ df9 = pandas.read_csv("recipes9.csv", encoding="utf-8")
 df10 = pandas.concat([df1, df2, df3, df4, df5, df6, df7, df8, df9], ignore_index=True)
 with open('recipes.csv', 'w', newline='', encoding="utf-8") as file:
     writer = csv.writer(file)
-    field = ["title", "prepTime", "cookTime", "totalTime", "servings", "ingredients", "steps", "keywords", "imageLinks", "link"]
+    field = ["title", "information", "ingredients", "steps", "keywords", "imageLinks", "link"]
 file.close()
 df10.to_csv('recipes.csv', index=False)
 end_time = time.time()
