@@ -32,6 +32,13 @@ def check_exists_by_id(id, driver):
         return False
     return True
 
+def check_exists_by_class(classN, driver):
+    try:
+        driver.find_element(By.CLASS_NAME, classN)
+    except NoSuchElementException:
+        return False
+    return True
+
 def findNumber (test):
     index = 0
     for i in test:
@@ -42,7 +49,6 @@ def findNumber (test):
 def check_title(title):
     if title in titles:
         return False
-    titles.append(title)
     return True
 
 # checks if the title of a recipe already exists, if it does return the row where it exists
@@ -70,17 +76,20 @@ def check_title(title):
 #     return True
 
 
+
 # this link is the original scroll page
 # scrolls through all the pages
 def scrollThroughPages(driver, link, searchWord, num):
     onePageRecipieGatherer(driver, link, searchWord, num)
     driver.get(link)
-    while check_exists_by_xpath("//*[@id=\"pagination_1-0\"]/li[6]/a", driver):
-        driver.get(link)
-        newLink = driver.find_element(By.XPATH, "//*[@id=\"pagination_1-0\"]/li[6]/a").get_attribute("href")
-        onePageRecipieGatherer(driver, newLink, searchWord, num)
-        link = newLink
+    counter = 24
 
+    #checks for next button (bug may occur if window is too small because the next button might not appear
+    while check_exists_by_class("mntl-pagination__next", driver):
+        newLink = "https://www.allrecipes.com/search?" + searchWord + "=" + searchWord + "&offset=" + str(counter) + "&q=" + searchWord
+        onePageRecipieGatherer(driver, newLink, searchWord, num)
+        counter += 24
+        driver.get(newLink)
 
 # saves all recipes on a page
 # note the driver in this method holds the link to the page with the search results, not the actual recipe page
@@ -90,10 +99,7 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
     id = "mntl-card-list-items_1-0"
     while check_exists_by_id(id, driver):
         newLink = driver.find_element("id", id).get_attribute("href")
-        if not newLink.find("/recipe/") > 0:
-            counter = counter + 1
-            id = "mntl-card-list-items_" + str(counter) + "-0"
-        else:
+        if not newLink.find("/recipe/") < 0:
             secondTab = requests.get(newLink)
             soup = BeautifulSoup(secondTab.content, "html.parser")
             imageLink = soup.find(class_="img-placeholder").prettify()
@@ -121,6 +127,7 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
                 SI[SIIndex] = SI[SIIndex].replace(':', ':_')
                 SIIndex += 1
             SIFinal = "|".join(SI)
+
             # Getting ingredients
             scrapedIngredients = soup.findAll(class_="mntl-structured-ingredients__list-item")
             ingredients = ""
@@ -130,14 +137,7 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
             ingredients = re.sub(r'\n+', '>', word).strip()
             ingredients = re.sub(r'\s+', "_", ingredients)
 
-
-            # Instructions
-            # https://stackoverflow.com/questions/32063985/deleting-a-div-with-a-particular-class-using-beautifulsoup
-            # delete = soup.findAll(class_="figure-article-caption-owner")
-            # for caption in delete:
-            #     caption.decompose()
-            # rawSteps = soup.findAll(class_="comp mntl-sc-block-group--LI mntl-sc-block mntl-sc-block-startgroup")
-
+            #Get steps
             delete = soup.findAll(class_="figure-article-caption-owner")
             for caption in delete:
                 caption.decompose()
@@ -149,13 +149,14 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
                 steps = steps + "]" + str(stepCounter) + "." + step.text.strip()
             steps = re.sub(r'\s+', "_", steps)
             keywords = searchWord.replace(" ", "_")
-            id = "mntl-card-list-items_" + str(counter) + "-0"
             with open('recipes' + num + '.csv', 'a', newline='', encoding="utf-8") as file:
                 writer = csv.writer(file)
                 if check_title(titleResults): #addKeyWord(titleResults, searchWord, num)
+                    titles.append(titleResults)
                     writer.writerow([titleResults, SIFinal, ingredients, steps, keywords, imageLink, link])
-                    print('"' + titleResults + '" Recipe Completed!')
-            counter = counter + 1
+                    #print('"' + titleResults + '" Recipe Completed!')
+        counter = counter + 1
+        id = "mntl-card-list-items_" + str(counter) + "-0"
             #print(titleResults + splitInfoResults[0] + splitInfoResults[1] + splitInfoResults[2] +splitInfoResults[3] + ingredients + steps + keywords + imageLink[counter]+ newLink)
 
 # threadInitializer
@@ -163,13 +164,14 @@ def threadStart(wordList, num):
     options = Options()
     options.add_argument('--headless=new')
     driver = webdriver.Chrome(options=options)
+
     with open('recipes' + num + '.csv', 'w', newline='', encoding="utf-8") as file:
         writer = csv.writer(file)
         field = ["title", "information", "ingredients", "steps", "keywords",
                  "imageLinks", "link"]
     file.close()
     for word in wordList:
-        link = "https://www.allrecipes.com/search?q=" + word.replace(" ", "%20")
+        link = "https://www.allrecipes.com/search?q=" + word.replace(" ", "+")
         scrollThroughPages(driver, link, word, num)
     print("Thread " + num + " Finished")
 
@@ -212,6 +214,7 @@ for searchWord in wordFile:
         wordList1.append(searchWord.replace("\n", ""))
     counter = counter + 1
 wordFile.close()
+
 
 # Create and start threads
 t1 = threading.Thread(target=threadStart, args=(wordList1, "1"))
