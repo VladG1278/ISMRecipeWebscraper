@@ -10,7 +10,11 @@ import csv
 import pandas as pd
 import threading
 import time
+from bs4 import BeautifulSoup as BSHTML
+import urllib3
 
+
+titles = []
 
 # https://stackoverflow.com/questions/9567069/checking-if-an-element-exists-with-python-selenium
 def check_exists_by_xpath(xpath, driver):
@@ -35,29 +39,35 @@ def findNumber (test):
             return index
     return -1
 
-# checks if the title of a recipe already exists, if it does return the row where it exists
-def check_title(title, num):
-    with open('recipes' + num + '.csv', newline='', encoding="utf-8") as f:
-        rowCounter = 0
-        reader = csv.reader(f)
-        for row in reader:
-            if row[0] == title:
-                return rowCounter
-        rowCounter = rowCounter + 1
-    return -1
-
-
-# adds a key word to an already existing recipe instead of adding the saem recipe
-def addKeyWord(title, searchWord, num):
-    row = check_title(title, num)
-    if row > 0:
-        df = pd.read_csv("recipes" + num + ".csv", encoding="utf-8")
-        if df.loc[row, 'keywords'].find(searchWord) != -1:
-            df.loc[row, 'keywords'] = "|" + df.loc[row, 'keywords'] + searchWord
-            df.to_csv("recipes" + num + ".csv", index=False)
-        df.close()
+def check_title(title):
+    if title in titles:
         return False
+    titles.append(title)
     return True
+
+# checks if the title of a recipe already exists, if it does return the row where it exists
+# def check_title(title, num):
+#     with open('recipes' + num + '.csv', newline='', encoding="utf-8") as f:
+#         rowCounter = 0
+#         reader = csv.reader(f)
+#         for row in reader:
+#             if row[0] == title:
+#                 return rowCounter
+#         rowCounter += 1
+#     return -1
+#
+#
+# # adds a key word to an already existing recipe instead of adding the saem recipe
+# def addKeyWord(title, searchWord, num):
+#     row = check_title(title, num)
+#     if row > 0:
+#         df = pd.read_csv("recipes" + num + ".csv", encoding="utf-8")
+#         if df.loc[row, 'keywords'].find(searchWord) != -1:
+#             df.loc[row, 'keywords'] = "|" + searchWord
+#             df.to_csv("recipes" + num + ".csv", index=False)
+#             return False
+#         df.close()
+#     return True
 
 
 # this link is the original scroll page
@@ -73,26 +83,9 @@ def scrollThroughPages(driver, link, searchWord, num):
 
 
 # saves all recipes on a page
+# note the driver in this method holds the link to the page with the search results, not the actual recipe page
 def onePageRecipieGatherer(driver, link, searchWord, num):
     driver.get(link)
-
-    # Force load page to grab all lazy loaded images
-    # https://stackoverflow.com/questions/62600288/how-to-handle-lazy-loaded-images-in-selenium
-    SCROLL_PAUSE_TIME = 0.5
-    last_height = driver.execute_script("return document.body.scrollHeight")
-    while True:
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(SCROLL_PAUSE_TIME)
-        new_height = driver.execute_script("return document.body.scrollHeight")
-        if new_height == last_height:
-            break
-        last_height = new_height
-    driver.implicitly_wait(10)
-    images = driver.find_elements(By.XPATH, "//div[@class='img-placeholder']/img")
-    imageLink = []
-    for image in images[:-1]:
-        imageLink.append(image.get_attribute("src"))
-    # print(str(len(images)) + " -- " + str(len(imageLink)) + " -- " + searchWord)
     counter = 0
     id = "mntl-card-list-items_1-0"
     while check_exists_by_id(id, driver):
@@ -103,6 +96,11 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
         else:
             secondTab = requests.get(newLink)
             soup = BeautifulSoup(secondTab.content, "html.parser")
+            imageLink = soup.find(class_="img-placeholder").prettify()
+            beginningIndex = imageLink.find("src=\"") + 5
+            lastIndex = imageLink.find("\"", beginningIndex)
+            imageLink = imageLink[beginningIndex:lastIndex]
+
             titleResults = soup.find(id = "article-header--recipe_1-0").text.replace("\n", "")
             #find number in titleResults
             titleResultsSplit = re.split('\d', titleResults)
@@ -111,7 +109,7 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
             # Grabbing Information WebScraper
             SILabel = soup.findAll(class_="mntl-recipe-details__label")
             SIValue = soup.findAll(class_="mntl-recipe-details__value")
-            SI = [];
+            SI = []
             SIIndex = 0
             while SIIndex < len(SIValue):
                 SI.append(SILabel[SIIndex].text + SIValue[SIIndex].text)
@@ -154,8 +152,9 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
             id = "mntl-card-list-items_" + str(counter) + "-0"
             with open('recipes' + num + '.csv', 'a', newline='', encoding="utf-8") as file:
                 writer = csv.writer(file)
-                if addKeyWord(titleResults, searchWord, num):
-                    writer.writerow([titleResults, SIFinal, ingredients, steps, keywords, imageLink[counter], link])
+                if check_title(titleResults): #addKeyWord(titleResults, searchWord, num)
+                    writer.writerow([titleResults, SIFinal, ingredients, steps, keywords, imageLink, link])
+                    print('"' + titleResults + '" Recipe Completed!')
             counter = counter + 1
             #print(titleResults + splitInfoResults[0] + splitInfoResults[1] + splitInfoResults[2] +splitInfoResults[3] + ingredients + steps + keywords + imageLink[counter]+ newLink)
 
