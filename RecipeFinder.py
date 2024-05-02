@@ -12,7 +12,7 @@ import threading
 import time
 from bs4 import BeautifulSoup as BSHTML
 import urllib3
-
+from requests.adapters import HTTPAdapter, Retry
 
 titles = []
 
@@ -51,30 +51,6 @@ def check_title(title):
         return False
     return True
 
-# checks if the title of a recipe already exists, if it does return the row where it exists
-# def check_title(title, num):
-#     with open('recipes' + num + '.csv', newline='', encoding="utf-8") as f:
-#         rowCounter = 0
-#         reader = csv.reader(f)
-#         for row in reader:
-#             if row[0] == title:
-#                 return rowCounter
-#         rowCounter += 1
-#     return -1
-#
-#
-# # adds a key word to an already existing recipe instead of adding the saem recipe
-# def addKeyWord(title, searchWord, num):
-#     row = check_title(title, num)
-#     if row > 0:
-#         df = pd.read_csv("recipes" + num + ".csv", encoding="utf-8")
-#         if df.loc[row, 'keywords'].find(searchWord) != -1:
-#             df.loc[row, 'keywords'] = "|" + searchWord
-#             df.to_csv("recipes" + num + ".csv", index=False)
-#             return False
-#         df.close()
-#     return True
-
 
 
 # this link is the original scroll page
@@ -83,32 +59,39 @@ def scrollThroughPages(driver, link, searchWord, num):
     onePageRecipieGatherer(driver, link, searchWord, num)
     driver.get(link)
     counter = 24
-
     #checks for next button (bug may occur if window is too small because the next button might not appear
     while check_exists_by_class("mntl-pagination__next", driver):
         newLink = "https://www.allrecipes.com/search?" + searchWord + "=" + searchWord + "&offset=" + str(counter) + "&q=" + searchWord
         onePageRecipieGatherer(driver, newLink, searchWord, num)
         counter += 24
         driver.get(newLink)
-
+    print(searchWord + " Completed!")
 # saves all recipes on a page
 # note the driver in this method holds the link to the page with the search results, not the actual recipe page
 def onePageRecipieGatherer(driver, link, searchWord, num):
     driver.get(link)
+    noError = True
     counter = 0
     id = "mntl-card-list-items_1-0"
     while check_exists_by_id(id, driver):
         newLink = driver.find_element("id", id).get_attribute("href")
         if not newLink.find("/recipe/") < 0:
-            secondTab = requests.get(newLink)
+            s = requests.Session()
+
+            retries = Retry(total=5,
+                            backoff_factor=0.1,
+                            status_forcelist=[500, 502, 503, 504])
+
+            s.mount('http://', HTTPAdapter(max_retries=retries))
+            secondTab = s.get(newLink)
             soup = BeautifulSoup(secondTab.content, "html.parser")
             imageLink = soup.find(class_="img-placeholder").prettify()
             beginningIndex = imageLink.find("src=\"") + 5
             lastIndex = imageLink.find("\"", beginningIndex)
             imageLink = imageLink[beginningIndex:lastIndex]
 
-            titleResults = soup.find(id = "article-header--recipe_1-0").text.replace("\n", "")
-            #find number in titleResults
+            titleResults = soup.find(id="article-header--recipe_1-0").text.replace("\n", "")
+            # find number in titleResults
             titleResultsSplit = re.split('\d', titleResults)
             titleResults = titleResultsSplit[0]
 
@@ -121,7 +104,7 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
                 SI.append(SILabel[SIIndex].text + SIValue[SIIndex].text)
                 SI[SIIndex] = re.sub(r'\s+', '_', SI[SIIndex])
                 temp = SI[SIIndex]
-                if temp[len(temp)-1] == '_':
+                if temp[len(temp) - 1] == '_':
                     SI[SIIndex] = SI[SIIndex].replace('_', '')
                 SI[SIIndex] = SI[SIIndex].replace(':_', ':')
                 SI[SIIndex] = SI[SIIndex].replace(':', ':_')
@@ -137,7 +120,7 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
             ingredients = re.sub(r'\n+', '>', word).strip()
             ingredients = re.sub(r'\s+', "_", ingredients)
 
-            #Get steps
+            # Get steps
             delete = soup.findAll(class_="figure-article-caption-owner")
             for caption in delete:
                 caption.decompose()
@@ -151,14 +134,13 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
             keywords = searchWord.replace(" ", "_")
             with open('recipes' + num + '.csv', 'a', newline='', encoding="utf-8") as file:
                 writer = csv.writer(file)
-                if check_title(titleResults): #addKeyWord(titleResults, searchWord, num)
+                if check_title(titleResults):  # addKeyWord(titleResults, searchWord, num)
                     titles.append(titleResults)
                     writer.writerow([titleResults, SIFinal, ingredients, steps, keywords, imageLink, link])
                     #print('"' + titleResults + '" Recipe Completed!')
         counter = counter + 1
         id = "mntl-card-list-items_" + str(counter) + "-0"
-            #print(titleResults + splitInfoResults[0] + splitInfoResults[1] + splitInfoResults[2] +splitInfoResults[3] + ingredients + steps + keywords + imageLink[counter]+ newLink)
-
+        # print(titleResults + splitInfoResults[0] + splitInfoResults[1] + splitInfoResults[2] +splitInfoResults[3] + ingredients + steps + keywords + imageLink[counter]+ newLink)
 # threadInitializer
 def threadStart(wordList, num):
     options = Options()
