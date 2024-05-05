@@ -102,14 +102,14 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
             SIIndex = 0
             while SIIndex < len(SIValue):
                 SI.append(SILabel[SIIndex].text + SIValue[SIIndex].text)
-                SI[SIIndex] = re.sub(r'\s+', '_', SI[SIIndex])
+                SI[SIIndex] = re.sub(r'\s+', ' ', SI[SIIndex])
                 temp = SI[SIIndex]
-                if temp[len(temp) - 1] == '_':
-                    SI[SIIndex] = SI[SIIndex].replace('_', '')
-                SI[SIIndex] = SI[SIIndex].replace(':_', ':')
-                SI[SIIndex] = SI[SIIndex].replace(':', ':_')
+                if temp[len(temp) - 1] == ' ':
+                    SI[SIIndex] = SI[SIIndex].replace(' ', '')
+                SI[SIIndex] = SI[SIIndex].replace(': ', ':')
+                SI[SIIndex] = SI[SIIndex].replace(':', ': ')
                 SIIndex += 1
-            SIFinal = "|".join(SI)
+            SIFinal = "\n".join(SI)
 
             # Getting ingredients
             scrapedIngredients = soup.findAll(class_="mntl-structured-ingredients__list-item")
@@ -117,8 +117,8 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
             for ingredient in scrapedIngredients:
                 ingredients = ingredients + ingredient.text
             word = re.sub(r'someword=|\,.*|\#.*', '', ingredients)
-            ingredients = re.sub(r'\n+', '>', word).strip()
-            ingredients = re.sub(r'\s+', "_", ingredients)
+            ingredients = re.sub(r'\n+', '\n', word).strip()
+            ingredients = re.sub(r'\s+', " ", ingredients)
 
             # Get steps
             delete = soup.findAll(class_="figure-article-caption-owner")
@@ -130,13 +130,13 @@ def onePageRecipieGatherer(driver, link, searchWord, num):
             for step in rawSteps:
                 stepCounter = stepCounter + 1
                 steps = steps + "]" + str(stepCounter) + "." + step.text.strip()
-            steps = re.sub(r'\s+', "_", steps)
-            keywords = searchWord.replace(" ", "_")
+            steps = re.sub(r'\s+', " ", steps)
+            keywords = searchWord.replace(" ", " ")
             with open('recipes' + num + '.csv', 'a', newline='', encoding="utf-8") as file:
                 writer = csv.writer(file)
                 if check_title(titleResults):  # addKeyWord(titleResults, searchWord, num)
                     titles.append(titleResults)
-                    writer.writerow([titleResults, SIFinal, ingredients, steps, keywords, imageLink, link])
+                    writer.writerow([titleResults, SIFinal, ingredients, steps, keywords, imageLink, newLink])
                     #print('"' + titleResults + '" Recipe Completed!')
         counter = counter + 1
         id = "mntl-card-list-items_" + str(counter) + "-0"
@@ -243,6 +243,6 @@ with open('recipes.csv', 'w', newline='', encoding="utf-8") as file:
     writer = csv.writer(file)
     field = ["title", "information", "ingredients", "steps", "keywords", "imageLinks", "link"]
 file.close()
-df10.to_csv('recipes.csv', index=False)
+df10.to_csv('recipes.csv')
 end_time = time.time()
 print("Time taken: ", end_time - start_time, "seconds")
